@@ -3,6 +3,16 @@ import Plots
 using Plots
 using LinearAlgebra
 
+"function Wgaus(r, h)
+    q = norm(r)^2 / h^2
+    return (1.0 / (h^3 * (pi^(3/2)))) * exp(-q)
+end
+
+function gradWgaus(r,h)
+    q = norm(r)^2 / h^2
+    return r*(-2.0 / (h^5 * (pi^(3/2)))) * exp(-q)
+end"
+
 function A1(x,y)
     return 0.5*(x+y)
 end
@@ -16,6 +26,7 @@ function A3(x,y)
 end
 
 function W(r,h)
+    sigma = 40 / (7*pi*h^2)
     q = 1/h * norm(r)
     if 0<=q<=0.5
         return sigma*(6*(q^3-q^2)+1)
@@ -24,6 +35,23 @@ function W(r,h)
     else
         return 0
     end
+end
+
+function gradW(r,h)
+    sigma = 40 / (7*pi*h^2)
+    p = r
+    q = 1/h * norm(r)
+    if 0<=q<=0.5
+        W= -sigma*(6*(3*q^2-2*q))
+    elseif 0.5<q<=1
+        W= sigma*(6*(1-q)^2)
+    else
+        W= 0
+    end
+    if p>=0
+        return W=W*(-1)
+    end
+    return W
 end
 
 function Gitter()
@@ -61,7 +89,7 @@ function A1_dis(x,y)
     for j in 1:size(pos,1)
         xj = pos[j,:]
         xi = [x ; y]
-        sum = sum + A1(xj[1],xj[2])*(m/rho[j])*W(xi - xj,h)
+        sum = sum + A1(xj[1],xj[2])*(m/rho[j])*W(xi-xj,h)
     end
     return sum
 end
@@ -86,20 +114,12 @@ function A3_dis(x,y)
     return sum
 end
 
-"function Laplace_op()
-    for i in 1:size(pos,1)
-        sum = 0
-        for j in 1:size(pos,1)
-            sum = sum + (18/p[j])*A(xi,xj) *2*2te Ablteing W / Abstand(x[i],x[j])
-        end
-    end
-end"
-
-m = 18
-h = 0.3
+m = 0.005
+h = 0.1
 sigma = 40 / (7*pi*h^2)
-gittergroeße= 50
+gittergroeße= 20
 x,y,pos,xsmall,ysmall = Gitter()
+partikelanzahl = length(x)
 rho = Dichte()
 
 s = zeros(gittergroeße,2)
@@ -133,4 +153,42 @@ a3_error = a3 - a3_dis
 
 a_error = [a1_error a2_error a3_error]
 
-plot(xsmall,a_komplett)
+function Druck()
+    P = k * rho.^(1+1/n)
+    return P
+end
+
+"Pressure constant"
+k = 0.1
+"Polytropic index"
+n = 1
+P = Druck()
+"Anfangsgeschwindigkeiten der Partikel"
+v = rand(partikelanzahl)
+"damping"
+nu = 1
+"external force constant--Wird hier nicht berechnet!"
+lambda = 2.01
+lamda = 0
+dt = 0.04
+
+function Beschleunigung()
+    a = zeros(partikelanzahl)
+    for i in 1:partikelanzahl
+        xi = pos[i,:]
+        for j in (i+1):partikelanzahl
+            xj = pos[j,:]
+            a[i] = a[i]-m*((P[i] / rho[i].*rho[i])+(P[j] / rho[j].*rho[j]))*gradW(Abstand(xi,xj),h)
+        end
+    end
+    return a
+end
+
+a = Beschleunigung()
+
+for i in 1:partikelanzahl
+    v[i] = v[i] + dt * a[i]
+    x[i] = x[i] + dt*v[i]
+end
+
+scatter(x, y, title = "Partikelbewegung", label = "Partikel", lw = 3)
