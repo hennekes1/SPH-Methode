@@ -49,8 +49,10 @@ function gradW(r,h)
         W= 0
     end
     if p>=0
-        return W=W*(-1)
+        W=W*(-1)
     end
+    "wx = W *x
+    wy = W * y"
     return W
 end
 
@@ -164,7 +166,9 @@ k = 0.1
 n = 1
 P = Druck()
 "Anfangsgeschwindigkeiten der Partikel"
-v = rand(partikelanzahl)
+v = ones(partikelanzahl,2)
+v = v*3
+v[:,2] .= 0
 "damping"
 nu = 1
 "external force constant--Wird hier nicht berechnet!"
@@ -172,23 +176,67 @@ lambda = 2.01
 lamda = 0
 dt = 0.04
 
+
 function Beschleunigung()
-    a = zeros(partikelanzahl)
+    a = zeros(partikelanzahl,2)
     for i in 1:partikelanzahl
         xi = pos[i,:]
         for j in (i+1):partikelanzahl
             xj = pos[j,:]
-            a[i] = a[i]-m*((P[i] / rho[i].*rho[i])+(P[j] / rho[j].*rho[j]))*gradW(Abstand(xi,xj),h)
+            a[i,1] = a[i,1]-m*((P[i] / rho[i].*rho[i])+(P[j] / rho[j].*rho[j]))*gradW(Abstand(xi,xj),h)
+            "a[i,2] = a[i,2]-m*((P[i] / rho[i].*rho[i])+(P[j] / rho[j].*rho[j]))*gradW(Abstand(xi,xj),h)"
         end
     end
+
+    "Dämpfung und externe Kräfte"
+    "a[:,1] = a[:,1] - lambda .* pos[:,1] - nu .* v[:,1]
+    a[:,2] = a[:,2] - lambda .* pos[:,2] - nu .* v[:,2]"
     return a
 end
 
 a = Beschleunigung()
+"Zeitintegration"
+time_steps = 5
+x_werte = zeros(partikelanzahl,time_steps+1)
+y_werte = zeros(partikelanzahl,time_steps+1)
+for j in 1:time_steps
+    x_werte[:,j] = x[:]
+    y_werte[:,j] = y[:]
+    for i in 1:partikelanzahl
+        v[i,1] = v[i,1] + dt*a[i,1]
+        v[i,2] = v[i,2] + dt*a[i,2]
+        x[i] = x[i] + dt*v[i,1]
+        y[i] = y[i] + dt*v[i,2]
 
-for i in 1:partikelanzahl
-    v[i] = v[i] + dt * a[i]
-    x[i] = x[i] + dt*v[i]
+        "Periodische Ränder"
+        if x[i] .> 2
+            x[i] = 2*2-x[i]
+            v[i] = v[i] *(-1)
+        end
+        if x[i] .< -2
+            x[i] = 2*(-2) - x[i]
+            v[i] = v[i] *(-1)
+        end
+        if y[i] .> 1.5
+            y[i] = 2*1.5 - y[i]
+            v[i] = v[i] *(-1)
+        end
+        if y[i] .< 0
+            y[i] = 2*0 - y[i]
+            v[i] = v[i] *(-1)
+        end
+        if x[i] .> 2
+            x[i] = 2*2-x[i]
+            v[i] = v[i] *(-1)
+        end
+        if x[i] .< -2
+            x[i] = 2*(-2) - x[i]
+            v[i] = v[i] *(-1)
+        end
+    end
 end
+x_werte[:,time_steps+1] = x[:]
+y_werte[:,time_steps+1] = y[:]
 
-scatter(x, y, title = "Partikelbewegung", label = "Partikel", lw = 3)
+scatter(x_werte, y_werte,layout=(3,2))
+scatter(x_werte[:,time_steps+1], y_werte[:,time_steps+1])
