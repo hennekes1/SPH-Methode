@@ -166,7 +166,8 @@ end
 
 
 function Druck(rho,k,n)
-    P = k * rho.^(1+1/n)
+    rho_ruhe = 7.833407355304225
+    P = k * (rho.-rho_ruhe)
     return P
 end
 
@@ -178,10 +179,11 @@ function F_Pressure(pos,v,m,h,k,n)
         xi = pos[i,:]
         for j in 1:partikelanzahl
             xj = pos[j,:]
-            f_pres[i] = f_pres[i]+m*((P[i] / (rho[i].*rho[i]))+(P[j] / (rho[j].*rho[j])))*dWspiky(Abstand(xi,xj),h)
+            "f_pres[i] = f_pres[i]+m*((P[i] / (rho[i].*rho[i]))+(P[j] / (rho[j].*rho[j])))*dWspiky(Abstand(xi,xj),h)"
+            f_pres[i] = f_pres[i]+m.*((P[i].+P[j])./(2*rho[j]))*dWspiky(Abstand(xi,xj),h)
         end
     end
-    return f_pres
+    return -f_pres
 end
 
 function F_Viscosity(pos,v,m,h,k,n,nu)
@@ -190,10 +192,10 @@ function F_Viscosity(pos,v,m,h,k,n,nu)
         xi = pos[i,:]
         for j in 1:partikelanzahl
             xj = pos[j,:]
-            f_vis[i] = f_vis[i] + m*((v[j,1]-v[i,1])/rho[j])*d2Wviscosity(Abstand(xi,xj),h)
+            f_vis[i] = f_vis[i] + m*((v[j,1]-v[i,1])./rho[j])*d2Wviscosity(Abstand(xi,xj),h)
         end
     end
-    f_vis = f_vis .* (nu./rho)
+    f_vis = f_vis .* nu
     return f_vis
 end
 
@@ -208,17 +210,17 @@ k = 0.1
 n = 1
 "Anfangsgeschwindigkeiten der Partikel"
 v = ones(partikelanzahl,2)
-v = v*2
+v = v*1
 v[:,2] .= v[:,2] * 0
 "Viskositätskonstante"
-nu = 1
+nu = 1.0087
 "external force constant--Wird hier nicht berechnet!"
 lambda = 2.01
 "Schwerkraftkonstante"
 g = [0 ;-9.81]
 "Zeitintegration"
 dt = 0.04
-time_steps = 10
+time_steps = 1
 x_werte = zeros(partikelanzahl,time_steps+1)
 y_werte = zeros(partikelanzahl,time_steps+1)
 pos = [x[:] y[:]]
@@ -232,46 +234,26 @@ for j in 1:time_steps
     global f_pres = F_Pressure(pos,v,m,h,k,n)
     global f_vis = F_Viscosity(pos,v,m,h,k,n,nu)
     for i in 1:partikelanzahl
-        global delta_v = -f_pres./rho
-         ".+ f_vis"
-        v[i,1] = v[i,1] + dt*delta_v[i]
-        "v[i,2] = v[i,2] + dt*delta_v[i]"
+        global f_komplett = f_pres + f_vis
+        global acc = f_komplett ./ rho
+        v[i,1] = v[i,1] + dt*acc[i]
+        "v[i,2] = v[i,2] + dt*acc[i]"
 
         x[i] = x[i] + dt*v[i,1]
         y[i] = y[i] + dt*v[i,2]
 
         "Periodische Ränder"
-        if x[i] .> 2
-            x[i] = 2*2-x[i]
-            v[i,1] = v[i,1] * (-1)
+        if x[i] .> 3
+            x[i] = x[i].-6
         end
-        if x[i] .< -2
-            x[i] = 2*(-2) - x[i]
-            v[i,1] = v[i,1] * (-1)
+        if x[i] .< -3
+            x[i] = x[i].+6
         end
-        if y[i] .> 1.5
-            y[i] = 2*1.5 - y[i]
-            v[i,2] = v[i,2] *(-1)
+        if y[i] .> 2
+            y[i] = y[i].-2.5
         end
-        if y[i] .< 0
-            y[i] = 2*0 - y[i]
-            v[i,2] = v[i,2] *(-1)
-        end
-        if x[i] .> 2
-            x[i] = 2*2-x[i]
-            v[i,1] = v[i,1] * (-1)
-        end
-        if x[i] .< -2
-            x[i] = 2*(-2) - x[i]
-            v[i,1] = v[i,1] * (-1)
-        end
-        if y[i] .> 1.5
-            y[i] = 2*1.5 - y[i]
-            v[i,2] = v[i,2] *(-1)
-        end
-        if y[i] .< 0
-            y[i] = 2*0 - y[i]
-            v[i,2] = v[i,2] *(-1)
+        if y[i] .< -0.5
+            y[i] = y[i].+2.5
         end
     end
 end
@@ -281,6 +263,7 @@ global pos = [x[:] y[:]]
 global rho = Dichte(pos,m,h)
 global P = Druck(rho,k,n)
 global f_pres = F_Pressure(pos,v,m,h,k,n)
+global f_vis = F_Viscosity(pos,v,m,h,k,n,nu)
 
 scatter(x_werte, y_werte,layout=(3,2))
 scatter(x_werte[:,time_steps+1], y_werte[:,time_steps+1])
