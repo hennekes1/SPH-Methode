@@ -39,12 +39,12 @@ function d2Wviscosity(xi,xj)
 end
 
 function Gitter()
-    ax = -2+(4/(2*gittergroeße))
-    bx = 2-(4/(2*gittergroeße))
+    ax = linker_rand+((abs(rechter_rand)+(abs(linker_rand)))/(2*gittergroeße))
+    bx = rechter_rand-((abs(rechter_rand)+(abs(linker_rand)))/(2*gittergroeße))
     abx = bx-ax
     xsmall=collect(ax:abx/(gittergroeße-1):bx)
-    ay = 1.5/(2*gittergroeße)
-    by = 1.5 - (1.5/(2*gittergroeße))
+    ay = unterer_rand+((abs(oberer_rand)+(abs(unterer_rand)))/(2*gittergroeße))
+    by = oberer_rand - ((abs(oberer_rand)+(abs(unterer_rand)))/(2*gittergroeße))
     aby = by-ay
     ysmall=collect(ay:aby/(gittergroeße-1):by)
     x = zeros(length(xsmall)*length(ysmall))
@@ -66,20 +66,20 @@ function Differenz(xi,xj)
     minimum_x = xi_x - xj_x
     minimum_y = xi_y - xj_y
     if xj_x < xi_x
-        if (xj_x - linker_rand)+(rechter_rand - xi_x) < minimum_x
+        if (xj_x - linker_rand)+(rechter_rand - xi_x) < abs(minimum_x)
             minimum_x = -((xj_x-linker_rand)+(rechter_rand - xi_x))
         end
     else
-        if (rechter_rand-xj_x)+(xi_x-linker_rand) < minimum_x
+        if (rechter_rand-xj_x)+(xi_x-linker_rand) < abs(minimum_x)
             minimum_x = ((rechter_rand-xj_x)+(xi_x-linker_rand))
         end
     end
     if xj_y < xi_y
-        if (xj_y - unterer_rand)+(oberer_rand - xi_y) < minimum_y
+        if (xj_y - unterer_rand)+(oberer_rand - xi_y) < abs(minimum_y)
             minimum_y = -((xj_y-unterer_rand)+(oberer_rand - xi_y))
         end
     else
-        if (oberer_rand-xj_y)+(xi_y-unterer_rand) < minimum_y
+        if (oberer_rand-xj_y)+(xi_y-unterer_rand) < abs(minimum_y)
             minimum_y = ((oberer_rand-xj_y)+(xi_y-unterer_rand))
         end
     end
@@ -119,7 +119,7 @@ function F_pressure(rho,P,pos)
         f_pres[i,1] = sum[1,1]
         f_pres[i,2] = sum[1,2]
     end
-    return f_pres
+    return -f_pres
 end
 
 function F_viscosity(rho,pos,v)
@@ -133,41 +133,76 @@ function F_viscosity(rho,pos,v)
                  sum = sum + (m/rho[j])*d2Wviscosity(xi,xj).*v[j,:]
              end
          end
-         f_vis[i,1] = m.*sum[1,1]
-         f_vis[i,2] = m.*sum[2,1]
+         f_vis[i,1] = nu*m.*sum[1,1]
+         f_vis[i,2] = nu*m.*sum[2,1]
      end
      return f_vis
 end
 
+"Initialisierung ds Gitters"
 
-"Initialberechnung des Gitters"
-gittergroeße=15
-x,y,anfangspos,xsmall,ysmall = Gitter()
-partikelanzahl = length(x)
-
-"Initialisierung der Konstanten"
-m = 2/partikelanzahl
-h = 0.1
-nu = 1.0087
-n = 1
-k = 0.1
-lambda = 2.01
 linker_rand = -2
 rechter_rand = 2
 unterer_rand = 0
 oberer_rand = 1.5
+gittergroeße = 20
+x,y,anfangspos,xsmall,ysmall = Gitter()
+partikelanzahl = length(x)
+
+"Initialisierung der Konstanten"
+
+star_mass = 2
+m = star_mass/partikelanzahl
+h = 0.1
+nu = 1.0087
+n = 1
+k = 0.1
 
 "Initialisierung der Variablen"
+
 t_end = 0
 dt = 0.01
 v = ones(partikelanzahl,2)
-v[:,2] = v[:,2] .*0
+v = v.*0.1
+global pos = anfangspos
 
-pos = anfangspos
+"Startbedingungen"
+
+if t_end == 0
+    global rho = Dichte(pos)
+    global P = Druck(rho)
+    global f_pres = F_pressure(rho,P,pos)
+    global f_vis = F_viscosity(rho,pos,v)
+end
+
+"Zeitintegration"
+
+for i in 1:t_end
+    global rho = Dichte(pos)
+    global P = Druck(rho)
+    global f_pres = F_pressure(rho,P,pos)
+    global f_vis = F_viscosity(rho,pos,v)
+    global v = v + (dt/1).*(f_vis+f_pres)
+    global pos = pos + dt.*v
+
+    "Periodische Ränder"
+    for i in 1:partikelanzahl
+        if pos[i,1] .> rechter_rand
+            pos[i,1] = pos[i,1].-(abs(rechter_rand)+(abs(linker_rand)))
+        end
+        if pos[i,1] .< linker_rand
+            pos[i,1] = pos[i,1].+(abs(rechter_rand)+(abs(linker_rand)))
+        end
+        if pos[i,2] .> oberer_rand
+            pos[i,2] = pos[i,2].-(abs(oberer_rand)+(abs(unterer_rand)))
+        end
+        if pos[i,2] .< unterer_rand
+            pos[i,2] = pos[i,2].+(abs(oberer_rand)+(abs(unterer_rand)))
+        end
+    end
+
+end
+
 x = pos[:,1]
 y = pos[:,2]
-
-rho = Dichte(pos)
-P = Druck(rho)
-f_pres = F_pressure(rho,P,pos)
-f_vis = F_viscosity(rho,pos,v)
+scatter(x,y,title="Partikelbewegung")
