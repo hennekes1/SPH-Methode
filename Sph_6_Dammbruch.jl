@@ -2,36 +2,38 @@ using Plots
 using LinearAlgebra
 
 function Wpoly6(xi,xj)
+    h = 0.0457 # TODO
     sigma = 315/(64*pi*h^9)
     q = norm(Differenz(xi,xj))
     if 0<=q<=h
         W = sigma*(h^2-q^2)^3
     else
-        W=0
+        W=0.0
     end
     return W
 end
 
 function dWspiky(xi,xj)
+    h = 0.0457 # TODO
     r = Differenz(xi,xj)
     q = norm(r)
     sigma = -45/(q*pi*h^6)
     if 0<=q<=h
-        W = (sigma * (h-q)^2 )
-        W= W.*r
+        W= r*(sigma * (h-q)^2 )
     else
-        W=[0 0]
+        W=[0.0 0.0]
     end
     return W
 end
 
 function d2Wviscosity(xi,xj)
+    h = 0.0457 # TODO
     sigma = 45/(pi*h^6)
     q = norm(Differenz(xi,xj))
     if 0<=q<=h
         W = sigma *(h-q)
     else
-        W=0
+        W=0.0
     end
     return W
 end
