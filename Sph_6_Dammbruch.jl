@@ -1,5 +1,3 @@
-import LinearAlgebra
-import Plots
 using Plots
 using LinearAlgebra
 
@@ -244,6 +242,7 @@ end"
 
 "Initialisierung ds Gitters"
 
+function main()
 partikelrand_links = 0
 partikelrand_rechts = 1
 partikelrand_unten = 0
@@ -277,36 +276,36 @@ motion_damping = 1
 
 "Initialisierung der Variablen"
 
-t_end = 600
+t_end = 3 #600
 dt = 0.01
 v = ones(partikelanzahl,2)
 v[:,1] = v[:,1].*0
 v[:,2] = v[:,2].*0
-global pos = anfangspos
-global ausgabe_x = zeros(partikelanzahl,plotanzahl)
-global ausgabe_y = zeros(partikelanzahl,plotanzahl)
+pos = anfangspos
+ausgabe_x = zeros(partikelanzahl,plotanzahl)
+ausgabe_y = zeros(partikelanzahl,plotanzahl)
 ausgabe_x[:,1] = pos[:,1]
 ausgabe_y[:,1] = pos[:,2]
 
 "Startbedingungen"
 
-global rho = Dichte(pos)
-global P = Druck(rho)
-global f_pres = F_pressure(rho,P,pos)
-global f_vis = F_viscosity(rho,pos,v)
-global f_grav = F_gravity()
-global f_gesamt = f_pres + f_vis + f_grav
-global a = f_gesamt ./ rho
+rho = Dichte(pos)
+P = Druck(rho)
+f_pres = F_pressure(rho,P,pos)
+f_vis = F_viscosity(rho,pos,v)
+f_grav = F_gravity()
+f_gesamt = f_pres + f_vis + f_grav
+a = f_gesamt ./ rho
 
 
 "Leap-frog-time-integration"
-global v_minus = v - (dt/2)*a
+v_minus = v - (dt/2)*a
 
 for i in 1:t_end
 
-    global v_plus = v_minus + a*dt
-    global pos = pos + v_plus*dt
-    global v_minus = v_plus
+    v_plus = v_minus + a*dt
+    pos = pos + v_plus*dt
+    v_minus = v_plus
 
     "Statische Ränder"
     for j in 1:partikelanzahl
@@ -330,22 +329,23 @@ for i in 1:t_end
     if i == round((t_end/(plotanzahl-1))) || i == round((t_end/(plotanzahl-1)))*2 || i ==t_end
         ausgabe_x[:,ausgabe_index] = pos[:,1]
         ausgabe_y[:,ausgabe_index] = pos[:,2]
-        global ausgabe_index = ausgabe_index + 1
+        ausgabe_index = ausgabe_index + 1
     end
-    global v = (v_minus + v_plus).*0.5
-    global rho = Dichte(pos)
-    global P = Druck(rho)
-    global f_pres = F_pressure(rho,P,pos)
-    global f_vis = F_viscosity(rho,pos,v)
-    global f_grav = F_gravity()
-    "global f_gesamt = f_pres + f_vis + f_grav"
-    global f_gesamt = -f_pres + f_grav
-    global a = f_gesamt ./ rho
+    v = (v_minus + v_plus).*0.5
+    rho = Dichte(pos)
+    P = Druck(rho)
+    f_pres = F_pressure(rho,P,pos)
+    f_vis = F_viscosity(rho,pos,v)
+    f_grav = F_gravity()
+    "f_gesamt = f_pres + f_vis + f_grav"
+    f_gesamt = -f_pres + f_grav
+    a = f_gesamt ./ rho
 end
+end # function main()
 
 
-x = pos[:,1]
-y = pos[:,2]
-scatter(x,y,title="Partikelbewegung")
-
-scatter(ausgabe_x,ausgabe_y,layout=(Int(round(plotanzahl/2)),Int(round(plotanzahl/2))))
+# x = pos[:,1]
+# y = pos[:,2]
+# scatter(x,y,title="Partikelbewegung")
+# 
+# scatter(ausgabe_x,ausgabe_y,layout=(Int(round(plotanzahl/2)),Int(round(plotanzahl/2))))
