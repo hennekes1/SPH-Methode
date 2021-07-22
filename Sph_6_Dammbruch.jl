@@ -1,5 +1,6 @@
 using Plots
 using LinearAlgebra
+using StaticArrays
 
 function Wpoly6(xi,xj)
     h = 0.0457 # TODO
@@ -21,7 +22,7 @@ function dWspiky(xi,xj)
     if 0<=q<=h
         W= r*(sigma * (h-q)^2 )
     else
-        W=[0.0 0.0]
+        W=@SMatrix[0.0 0.0]
     end
     return W
 end
@@ -90,7 +91,7 @@ function Differenz(xi,xj)
     xj_y = xj[2,1]
     minimum_x = xi_x - xj_x
     minimum_y = xi_y - xj_y
-    return [minimum_x minimum_y]
+    return @SMatrix [minimum_x minimum_y]
 end
 
 function Dichte2(pos)
@@ -125,10 +126,10 @@ end
 function Dichte(pos)
     rho = zeros(size(pos,1))
     for i in 1:partikelanzahl
-        xi = pos[i,:]
+        xi = SVector(pos[i, 1], pos[i, 2])
         rho[i] = rho[i] + m*Wpoly6(xi,xi)
         for j in (i+1):partikelanzahl
-            xj = pos[j,:]
+            xj = SVector(pos[j, 1], pos[j, 2])
             rho_ij = m*Wpoly6(xi,xj)
             rho[i] = rho[i] + rho_ij
             rho[j] = rho[j] + rho_ij
@@ -147,10 +148,10 @@ function F_pressure(rho,P,pos)
     f_pres = zeros(partikelanzahl,2)
     for i in 1:partikelanzahl
         sum = zeros(1,2)
-        xi = pos[i,:]
+        xi = SVector(pos[i, 1], pos[i, 2])
         for j in 1:partikelanzahl
             if i!=j
-                xj = pos[j,:]
+                xj = SVector(pos[j, 1], pos[j, 2])
                 sum = sum + (m./rho[j])*(((P[i]+P[j])./2)*dWspiky(xi,xj))
                 "sum = sum - rho[i]*m*((P[i]/(rho[i].*rho[i]))+(P[j]/(rho[j].*rho[j]))) .* dWspiky(xi,xj)"
             end
@@ -180,13 +181,15 @@ end
 function F_viscosity(rho,pos,v)
      f_vis = zeros(partikelanzahl,2)
      for i in 1:partikelanzahl
-         sum = zeros(2,1)
-         xi = pos[i,:]
+         sum = SVector(0.0, 0.0)
+         xi = SVector(pos[i, 1], pos[i, 2])
+         vi = SVector(v[i, 1], v[i, 2])
          for j in 1:partikelanzahl
              if i !=j
-                 xj = pos[j,:]
+                 xj = SVector(pos[j, 1], pos[j, 2])
+                 vj = SVector(v[j, 1], v[j, 2])
                  "sum = sum + (m/rho[j])*d2Wviscosity(xi,xj).*v[j,:]"
-                 sum = sum + (m/rho[j])*d2Wviscosity(xi,xj).*(v[j,:]-v[i,:])
+                 sum = sum + (m/rho[j])*d2Wviscosity(xi,xj).*(vj.-vi)
              end
          end
          f_vis[i,1] = mu.*sum[1,1]
@@ -212,7 +215,7 @@ function F_viscosity2(rho,pos,v)
 end
 
 function F_gravity()
-    global f_grav = zeros(partikelanzahl,2)
+    f_grav = zeros(partikelanzahl,2)
     f_grav[:,2] .= -9.81
     "return f_grav.*rest_density"
     return f_grav
@@ -298,6 +301,7 @@ f_vis = F_viscosity(rho,pos,v)
 f_grav = F_gravity()
 f_gesamt = f_pres + f_vis + f_grav
 a = f_gesamt ./ rho
+@show sum(a)
 
 
 "Leap-frog-time-integration"
@@ -338,10 +342,11 @@ for i in 1:t_end
     P = Druck(rho)
     f_pres = F_pressure(rho,P,pos)
     f_vis = F_viscosity(rho,pos,v)
-    f_grav = F_gravity()
+    # f_grav = F_gravity()
     "f_gesamt = f_pres + f_vis + f_grav"
     f_gesamt = -f_pres + f_grav
     a = f_gesamt ./ rho
+    @show sum(a)
 end
 end # function main()
 
