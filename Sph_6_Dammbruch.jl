@@ -39,7 +39,8 @@ function d2Wviscosity(xi,xj)
     return W
 end
 
-function Gitter()
+function Gitter(partikelrand_links, partikelrand_rechts, partikelrand_unten, partikelrand_oben,
+                gittergroeße)
     ax = partikelrand_links+((abs(partikelrand_rechts)+(abs(partikelrand_links)))/(2*gittergroeße))
     bx = partikelrand_rechts-((abs(partikelrand_rechts)+(abs(partikelrand_links)))/(2*gittergroeße))
     abx = bx-ax
@@ -259,7 +260,8 @@ wandwert_rechts = 3
 wandwert_links = 0
 wandwert_unten = 0
 wandwert_oben = 20
-x,y,anfangspos,xsmall,ysmall = Gitter()
+x,y,anfangspos,xsmall,ysmall = Gitter(partikelrand_links, partikelrand_rechts, partikelrand_unten,
+                                      partikelrand_oben, gittergroeße)
 partikelanzahl = length(x)
 "wand_links,wand_unten,wand_rechts = Wandpartikel2()"
 
