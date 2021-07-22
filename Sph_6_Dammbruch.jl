@@ -151,7 +151,7 @@ function F_pressure(rho,P,pos)
         for j in 1:partikelanzahl
             if i!=j
                 xj = pos[j,:]
-                sum = sum - (m./rho[j])*(((P[i]+P[j])./2)*dWspiky(xi,xj))
+                sum = sum + (m./rho[j])*(((P[i]+P[j])./2)*dWspiky(xi,xj))
                 "sum = sum - rho[i]*m*((P[i]/(rho[i].*rho[i]))+(P[j]/(rho[j].*rho[j]))) .* dWspiky(xi,xj)"
             end
         end
@@ -249,7 +249,7 @@ partikelrand_rechts = 1
 partikelrand_unten = 0
 partikelrand_oben = 1
 gittergroeße = 25
-wandwert_rechts = 2
+wandwert_rechts = 3
 wandwert_links = 0
 wandwert_unten = 0
 wandwert_oben = 20
@@ -261,20 +261,23 @@ partikelanzahl = length(x)
 
 star_mass = 2
 m = star_mass/partikelanzahl
-m = 0.02
+"m = 0.02"
 h = 0.0457
 mu = 3.5
 n = 1
-k = 3
-rest_density = 998.29
+"k = 3"
+k = 0.5
+"rest_density = 998.29"
+rest_density = 2.816
 surface_tension = 0.0728
 restitution = 0
 plotanzahl = 4
 ausgabe_index = 2
+motion_damping = 1
 
 "Initialisierung der Variablen"
 
-t_end = 0
+t_end = 600
 dt = 0.01
 v = ones(partikelanzahl,2)
 v[:,1] = v[:,1].*0
@@ -335,7 +338,8 @@ for i in 1:t_end
     global f_pres = F_pressure(rho,P,pos)
     global f_vis = F_viscosity(rho,pos,v)
     global f_grav = F_gravity()
-    global f_gesamt = f_pres + f_vis + f_grav
+    "global f_gesamt = f_pres + f_vis + f_grav"
+    global f_gesamt = -f_pres + f_grav
     global a = f_gesamt ./ rho
 end
 
