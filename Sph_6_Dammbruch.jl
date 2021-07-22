@@ -22,7 +22,7 @@ function dWspiky(xi,xj)
     if 0<=q<=h
         W= r*(sigma * (h-q)^2 )
     else
-        W=@SMatrix[0.0 0.0]
+        W=SVector(0.0, 0.0)
     end
     return W
 end
@@ -91,7 +91,7 @@ function Differenz(xi,xj)
     xj_y = xj[2,1]
     minimum_x = xi_x - xj_x
     minimum_y = xi_y - xj_y
-    return @SMatrix [minimum_x minimum_y]
+    return SVector(minimum_x, minimum_y)
 end
 
 function Dichte2(pos)
@@ -123,12 +123,12 @@ function Dichte2(pos)
     return rho
 end
 
-function Dichte(pos)
+function Dichte(pos, m)
     rho = zeros(size(pos,1))
-    for i in 1:partikelanzahl
+    for i in 1:length(rho)
         xi = SVector(pos[i, 1], pos[i, 2])
         rho[i] = rho[i] + m*Wpoly6(xi,xi)
-        for j in (i+1):partikelanzahl
+        for j in (i+1):length(rho)
             xj = SVector(pos[j, 1], pos[j, 2])
             rho_ij = m*Wpoly6(xi,xj)
             rho[i] = rho[i] + rho_ij
@@ -144,10 +144,11 @@ function Druck(rho)
     return P
 end
 
-function F_pressure(rho,P,pos)
+function F_pressure(rho,P,pos,m)
+    partikelanzahl = length(rho)
     f_pres = zeros(partikelanzahl,2)
     for i in 1:partikelanzahl
-        sum = zeros(1,2)
+        sum = SVector(0.0, 0.0)
         xi = SVector(pos[i, 1], pos[i, 2])
         for j in 1:partikelanzahl
             if i!=j
@@ -156,8 +157,8 @@ function F_pressure(rho,P,pos)
                 "sum = sum - rho[i]*m*((P[i]/(rho[i].*rho[i]))+(P[j]/(rho[j].*rho[j]))) .* dWspiky(xi,xj)"
             end
         end
-        f_pres[i,1] = sum[1,1]
-        f_pres[i,2] = sum[1,2]
+        f_pres[i,1] = sum[1]
+        f_pres[i,2] = sum[2]
     end
     return f_pres
 end
@@ -178,7 +179,8 @@ function F_pressure2(rho,P,pos)
     return f_pres
 end
 
-function F_viscosity(rho,pos,v)
+function F_viscosity(rho,pos,v,m)
+     partikelanzahl = length(rho)
      f_vis = zeros(partikelanzahl,2)
      for i in 1:partikelanzahl
          sum = SVector(0.0, 0.0)
@@ -294,10 +296,10 @@ ausgabe_y[:,1] = pos[:,2]
 
 "Startbedingungen"
 
-rho = Dichte(pos)
+rho = Dichte(pos, m)
 P = Druck(rho)
-f_pres = F_pressure(rho,P,pos)
-f_vis = F_viscosity(rho,pos,v)
+f_pres = F_pressure(rho,P,pos,m)
+f_vis = F_viscosity(rho,pos,v,m)
 f_grav = F_gravity()
 f_gesamt = f_pres + f_vis + f_grav
 a = f_gesamt ./ rho
@@ -338,10 +340,10 @@ for i in 1:t_end
         ausgabe_index = ausgabe_index + 1
     end
     v = (v_minus + v_plus).*0.5
-    rho = Dichte(pos)
+    rho = Dichte(pos, m)
     P = Druck(rho)
-    f_pres = F_pressure(rho,P,pos)
-    f_vis = F_viscosity(rho,pos,v)
+    f_pres = F_pressure(rho,P,pos,m)
+    f_vis = F_viscosity(rho,pos,v,m)
     # f_grav = F_gravity()
     "f_gesamt = f_pres + f_vis + f_grav"
     f_gesamt = -f_pres + f_grav
