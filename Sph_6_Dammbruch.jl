@@ -2,8 +2,7 @@ using Plots
 using LinearAlgebra
 using StaticArrays
 
-function Wpoly6(xi,xj)
-    h = 0.0457 # TODO
+function Wpoly6(xi,xj,h)
     sigma = 315/(64*pi*h^9)
     q = norm(Differenz(xi,xj))
     if 0<=q<=h
@@ -14,8 +13,7 @@ function Wpoly6(xi,xj)
     return W
 end
 
-function dWspiky(xi,xj)
-    h = 0.0457 # TODO
+function dWspiky(xi,xj,h)
     r = Differenz(xi,xj)
     q = norm(r)
     sigma = -45/(q*pi*h^6)
@@ -27,8 +25,7 @@ function dWspiky(xi,xj)
     return W
 end
 
-function d2Wviscosity(xi,xj)
-    h = 0.0457 # TODO
+function d2Wviscosity(xi,xj,h)
     sigma = 45/(pi*h^6)
     q = norm(Differenz(xi,xj))
     if 0<=q<=h
@@ -95,43 +92,14 @@ function Differenz(xi,xj)
     return SVector(minimum_x, minimum_y)
 end
 
-function Dichte2(pos)
-    rho = zeros(size(pos,1))
-    for i in 1:partikelanzahl
-        sum = 0
-        xi = pos[i,:]
-        for j in 1:partikelanzahl
-            xj = pos[j,:]
-            sum = sum + m*Wpoly6(xi,xj)
-        end
-
-        "Dichte zu den Wandpartikeln"
-
-        "for p in 1:size(wand_unten,1)
-            xp = wand_unten[p,:]
-            sum = sum+m*Wpoly6(xi,xp)
-        end
-        for k in 1:size(wand_links,1)
-            xk = wand_links[k,:]
-            sum = sum+m*Wpoly6(xi,xk)
-        end
-        for l in 1:size(wand_rechts,1)
-            xl = wand_rechts[l,:]
-            sum = sum+m*Wpoly6(xi,xl)
-        end"
-        rho[i] = sum
-    end
-    return rho
-end
-
-function Dichte(pos, m)
+function Dichte(pos, m, h)
     rho = zeros(size(pos,1))
     for i in 1:length(rho)
         xi = SVector(pos[i, 1], pos[i, 2])
-        rho[i] = rho[i] + m*Wpoly6(xi,xi)
+        rho[i] = rho[i] + m*Wpoly6(xi,xi,h)
         for j in (i+1):length(rho)
             xj = SVector(pos[j, 1], pos[j, 2])
-            rho_ij = m*Wpoly6(xi,xj)
+            rho_ij = m*Wpoly6(xi,xj,h)
             rho[i] = rho[i] + rho_ij
             rho[j] = rho[j] + rho_ij
         end
@@ -139,13 +107,13 @@ function Dichte(pos, m)
     return rho
 end
 
-function Druck(rho)
+function Druck(rho,rest_density,k)
     "P = k*(rho.*rho)"
     P = k*(rho.-rest_density)
     return P
 end
 
-function F_pressure(rho,P,pos,m)
+function F_pressure(rho,P,pos,m,h)
     partikelanzahl = length(rho)
     f_pres = zeros(partikelanzahl,2)
     for i in 1:partikelanzahl
@@ -154,7 +122,7 @@ function F_pressure(rho,P,pos,m)
         for j in 1:partikelanzahl
             if i!=j
                 xj = SVector(pos[j, 1], pos[j, 2])
-                sum = sum + (m./rho[j])*(((P[i]+P[j])./2)*dWspiky(xi,xj))
+                sum = sum + (m./rho[j])*(((P[i]+P[j])./2)*dWspiky(xi,xj,h))
                 "sum = sum - rho[i]*m*((P[i]/(rho[i].*rho[i]))+(P[j]/(rho[j].*rho[j]))) .* dWspiky(xi,xj)"
             end
         end
@@ -164,23 +132,7 @@ function F_pressure(rho,P,pos,m)
     return f_pres
 end
 
-function F_pressure2(rho,P,pos)
-    f_pres = zeros(partikelanzahl,2)
-    for i in 1:partikelanzahl
-        xi = pos[i,:]
-        for j in (i+1):partikelanzahl
-            xj = pos[j,:]
-            f_pres_ij = - (m./rho[j])*(((P[i]+P[j])./2)*dWspiky(xi,xj))
-            f_pres[i,1] = f_pres[i,1] + f_pres_ij[1,1]
-            f_pres[i,2] = f_pres[i,2] + f_pres_ij[1,2]
-            f_pres[j,1] = f_pres[j,1] - f_pres_ij[1,1]
-            f_pres[j,2] = f_pres[j,2] - f_pres_ij[1,2]
-        end
-    end
-    return f_pres
-end
-
-function F_viscosity(rho,pos,v,m)
+function F_viscosity(rho,pos,v,m,mu,h)
      partikelanzahl = length(rho)
      f_vis = zeros(partikelanzahl,2)
      for i in 1:partikelanzahl
@@ -192,7 +144,7 @@ function F_viscosity(rho,pos,v,m)
                  xj = SVector(pos[j, 1], pos[j, 2])
                  vj = SVector(v[j, 1], v[j, 2])
                  "sum = sum + (m/rho[j])*d2Wviscosity(xi,xj).*v[j,:]"
-                 sum = sum + (m/rho[j])*d2Wviscosity(xi,xj).*(vj.-vi)
+                 sum = sum + (m/rho[j])*d2Wviscosity(xi,xj,h).*(vj.-vi)
              end
          end
          f_vis[i,1] = mu.*sum[1,1]
@@ -201,52 +153,12 @@ function F_viscosity(rho,pos,v,m)
      return f_vis
 end
 
-function F_viscosity2(rho,pos,v)
-    f_vis = zeros(partikelanzahl,2)
-    for i in 1:partikelanzahl
-        xi = pos[i,:]
-        for j in (i+1):partikelanzahl
-            xj = pos[j,:]
-            f_vis_ij = mu*(m/rho[j])*d2Wviscosity(xi,xj).*(v[j,:]-v[i,:])
-            f_vis[i,1] = f_vis[i,1] + f_vis_ij[1,1]
-            f_vis[i,2] = f_vis[i,2] + f_vis_ij[1,2]
-            f_vis[j,1] = f_vis[j,1] + f_vis_ij[1,1]
-            f_vis[j,2] = f_vis[j,2] + f_vis_ij[1,2]
-        end
-    end
-    return f_vis
-end
-
-function F_gravity()
+function F_gravity(partikelanzahl)
     f_grav = zeros(partikelanzahl,2)
     f_grav[:,2] .= -9.81
     "return f_grav.*rest_density"
     return f_grav
 end
-
-"function F_surface(rho,pos)
-    c = zeros(size(pos,1))
-    for i in 1:partikelanzahl
-        sum = 0
-        xi = pos[i,:]
-        for j in 1:partikelanzahl
-                xj = pos[j,:]
-                sum = sum + m*d2Wviscosity(xi,xj)./rho[j]
-        end
-        c[i] = sum
-    end
-    n = zeros(size(pos,1))
-    for k in 1:partikelanzahl
-        sum = 0
-        xk = pos[k,:]
-        for l in 1:partikelanzahl
-                xl = pos[l,:]
-                sum = sum + m*dWspiky(xk,xl)./rho[l]
-        end
-        n[k] = sum
-    end
-    return c
-end"
 
 "Initialisierung ds Gitters"
 
@@ -254,16 +166,19 @@ function main()
 partikelrand_links = 0
 partikelrand_rechts = 1
 partikelrand_unten = 0
-partikelrand_oben = 1
+partikelrand_oben = 2
+
+
 gittergroeße = 25
-wandwert_rechts = 3
+
+
+wandwert_rechts = 4
 wandwert_links = 0
 wandwert_unten = 0
 wandwert_oben = 20
 x,y,anfangspos,xsmall,ysmall = Gitter(partikelrand_links, partikelrand_rechts, partikelrand_unten,
                                       partikelrand_oben, gittergroeße)
 partikelanzahl = length(x)
-"wand_links,wand_unten,wand_rechts = Wandpartikel2()"
 
 "Initialisierung der Konstanten"
 
@@ -279,34 +194,37 @@ k = 0.5
 rest_density = 2.816
 surface_tension = 0.0728
 restitution = 0
-plotanzahl = 4
-ausgabe_index = 2
+#plotanzahl = 16
+#plotanzeige = 4
+#plotindex = 1
+#ausgabe_index = 2
 motion_damping = 1
 
 "Initialisierung der Variablen"
 
-t_end = 3 #600
+t_end = 800
 dt = 0.01
 v = ones(partikelanzahl,2)
 v[:,1] = v[:,1].*0
 v[:,2] = v[:,2].*0
 pos = anfangspos
-ausgabe_x = zeros(partikelanzahl,plotanzahl)
-ausgabe_y = zeros(partikelanzahl,plotanzahl)
-ausgabe_x[:,1] = pos[:,1]
-ausgabe_y[:,1] = pos[:,2]
+#ausgabe_x = zeros(partikelanzahl,plotanzahl)
+#ausgabe_y = zeros(partikelanzahl,plotanzahl)
+#ausgabe_x[:,1] = pos[:,1]
+#ausgabe_y[:,1] = pos[:,2]
 
 "Startbedingungen"
 
-rho = Dichte(pos, m)
-P = Druck(rho)
-f_pres = F_pressure(rho,P,pos,m)
-f_vis = F_viscosity(rho,pos,v,m)
-f_grav = F_gravity()
-f_gesamt = f_pres + f_vis + f_grav
+rho = Dichte(pos, m, h)
+P = Druck(rho,rest_density,k)
+f_pres = F_pressure(rho,P,pos,m,h)
+f_vis = F_viscosity(rho,pos,v,m,mu,h)
+f_grav = F_gravity(partikelanzahl)
+#f_gesamt = f_pres + f_vis + f_grav
+f_gesamt = -f_pres + f_grav
 a = f_gesamt ./ rho
-@show sum(a)
-
+#@show sum(a) #Test der Werte, damit sie gleich bleiben
+time_plot = 1
 
 "Leap-frog-time-integration"
 v_minus = v - (dt/2)*a
@@ -336,27 +254,31 @@ for i in 1:t_end
             v[j,2] = v[j,2] -(1+restitution)*v[j,2]
         end
     end
-    if i == round((t_end/(plotanzahl-1))) || i == round((t_end/(plotanzahl-1)))*2 || i ==t_end
-        ausgabe_x[:,ausgabe_index] = pos[:,1]
-        ausgabe_y[:,ausgabe_index] = pos[:,2]
-        ausgabe_index = ausgabe_index + 1
-    end
+    #if i == 1 || i == round((t_end/(plotanzahl-1)))*plotindex || i ==t_end
+    #    ausgabe_x[:,ausgabe_index] = pos[:,1]
+    #    ausgabe_y[:,ausgabe_index] = pos[:,2]
+    #    ausgabe_index = ausgabe_index + 1
+    #    plotindex = plotindex + 1
+    #end
     v = (v_minus + v_plus).*0.5
-    rho = Dichte(pos, m)
-    P = Druck(rho)
-    f_pres = F_pressure(rho,P,pos,m)
-    f_vis = F_viscosity(rho,pos,v,m)
-    # f_grav = F_gravity()
-    "f_gesamt = f_pres + f_vis + f_grav"
+    rho = Dichte(pos, m, h)
+    P = Druck(rho,rest_density,k)
+    f_pres = F_pressure(rho,P,pos,m,h)
+    f_vis = F_viscosity(rho,pos,v,m,mu,h)
+    #f_gesamt = f_pres + f_vis + f_grav
     f_gesamt = -f_pres + f_grav
     a = f_gesamt ./ rho
-    @show sum(a)
+    #@show sum(a) #Test der Werte, damit sie gleich bleiben
+    if i == time_plot
+        x = pos[:,1]
+        y= pos[:,2]
+        display(scatter(x,y))
+        time_plot = time_plot + 20
+    end
 end
+
+#scatter(ausgabe_x,ausgabe_y,layout=(plotanzeige,plotanzeige))
+
 end # function main()
 
-
-# x = pos[:,1]
-# y = pos[:,2]
-# scatter(x,y,title="Partikelbewegung")
-# 
-# scatter(ausgabe_x,ausgabe_y,layout=(Int(round(plotanzahl/2)),Int(round(plotanzahl/2))))
+main()
