@@ -157,31 +157,36 @@ wandwert_oben = 4
 x,y,anfangspos,xsmall,ysmall = Gitter(partikelrand_links, partikelrand_rechts, partikelrand_unten,
                                       partikelrand_oben, gittergroeße)
 partikelanzahl = length(x)
-dy = (wandwert_oben - wandwert_unten) / (2*gittergroeße)
-dx = (wandwert_rechts - wandwert_links) / (2*gittergroeße)
+#dy = (wandwert_oben - wandwert_unten) / (2*gittergroeße)
+#dx = (wandwert_rechts - wandwert_links) / (2*gittergroeße)
+dy = (partikelrand_oben - partikelrand_unten) / gittergroeße
+dx = (partikelrand_rechts - partikelrand_links) / gittergroeße
 
 "Initialisierung der Konstanten"
 
 star_mass = 2
 #m = star_mass/partikelanzahl
-m = 0.0064
+#m = 0.0064
+m = dx * dy
 #h = 0.0457
 h = 2 * dx
 mu = 0.1
 k = 0.5
 rest_density = 1
-restitution = 0.5
+restitution = -0.5
 gas_konstante = 10
 
 
 "Initialisierung der Variablen"
 
-t_end= 3200
+t_end= 6000
 dt = 0.0008
 t = 0
 v = ones(partikelanzahl,2)
-v[:,1] = v[:,1].*5
+v[:,1] = v[:,1].*2.5
 v[:,2] = v[:,2].*(-2)
+#v[:,1] = v[:,1].*0
+#v[:,2] = v[:,2].*0
 pos = anfangspos
 
 "Startbedingungen"
@@ -210,7 +215,8 @@ for i in 1:t_end
             pos[j,1] = 2*wandwert_rechts - pos[j,1]
             #pos[j,1] = wandwert_rechts - dx/2
             if v[j,1] .> 0
-                v[j,1] = v[j,1] -(1+restitution)*v[j,1]
+                #v[j,1] = v[j,1] -(1+restitution)*v[j,1]
+                v[j,1] = restitution * v[j,1]
             end
         end
         if pos[j,1] .< wandwert_links
@@ -218,7 +224,8 @@ for i in 1:t_end
             pos[j,1] = 2*wandwert_links - pos[j,1]
             #pos[j,1] = wandwert_links +dx/2
             if v[j,1] .< 0
-                v[j,1] = v[j,1] -(1+restitution)*v[j,1]
+            #    v[j,1] = v[j,1] -(1+restitution)*v[j,1]
+                v[j,1] = restitution * v[j,1]
             end
         end
         if pos[j,2] .< wandwert_unten
@@ -226,15 +233,18 @@ for i in 1:t_end
             pos[j,2] = 2*wandwert_unten - pos[j,2]
             #pos[j,2] = wandwert_unten +dy/2
             if v[j,2] .< 0
-                v[j,2] = v[j,2] -(1+restitution)*v[j,2]
+                #v[j,2] = v[j,2] -(1+restitution)*v[j,2]
+                v[j,2] = restitution * v[j,2]
             end
         end
-        if pos[j,2] .> wandwert_oben-dy
+        if pos[j,2] .> wandwert_oben
+        #if pos[j,2] .> wandwert_oben-dy
         #if pos[j,2] .> (wandwert_oben-dy/2)
             pos[j,2] = 2*wandwert_oben - pos[j,2]
             #pos[j,2] = wandwert_oben - dy/2
             if v[j,2] .> 0
-                v[j,2] = v[j,2] -(1+restitution)*v[j,2]
+                #v[j,2] = v[j,2] -(1+restitution)*v[j,2]
+                v[j,2] = restitution * v[j,2]
             end
         end
     end
@@ -248,13 +258,16 @@ for i in 1:t_end
     if i == time_plot
         x = pos[:,1]
         y= pos[:,2]
-        display(scatter(x,y))
-        println("Zeit ist gerade bei: " , time_plot)
-        time_plot = time_plot + 50
+        display(scatter(xlims=(wandwert_links,wandwert_rechts), ylims=(wandwert_unten,wandwert_oben), x,y))
+        println("Zeit ist gerade bei: " , t)
+        #savefig("SPH-Methode\\test" *  ".png")
+        time_plot = time_plot + 10
+        #println("Rho")
+    #    println(sum(rho))
 
     end
-    println("Die Zeit ist gerade:")
-println(t)
+#println("Die Zeit ist gerade:")
+#println(t)
 #println("Rho")
 #println(minimum(rho))
 #println(maximum(rho))
@@ -273,9 +286,9 @@ println(t)
 
 end
 
-return rho,P,f_gesamt[:,1],f_gesamt[:,2],v[:,1],v[:,2],pos[:,1],pos[:,2],dx,dy
+return rho,P,f_gesamt[:,1],f_gesamt[:,2],v[:,1],v[:,2],pos[:,1],pos[:,2],dx,dy,xsmall,ysmall
 end # function main()
 
-rho,P,fx,fy,vx,vy,x,y,dx,dy = main()
+rho,P,fx,fy,vx,vy,x,y,dx,dy,xsmall,ysmall = main()
 
 #savefig("SPH-Methode\\")
